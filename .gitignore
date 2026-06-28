@@ -1,0 +1,5 @@
+build
+.lock-waf*
+compile_commands.json
+.cache
+node_modules
