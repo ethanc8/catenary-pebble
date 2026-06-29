@@ -26,7 +26,18 @@
       "dummy"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "ICON_PBL_WARNING_25",
+          "file": "icons/pebble/Pebble_25x25_Generic_warning.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_T_TRAIN_25",
+          "file": "icons/transports/train-25.png"
+        }
+      ]
     }
   }
 }
