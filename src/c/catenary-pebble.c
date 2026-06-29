@@ -15,9 +15,8 @@ enum {
   MenuSection_Preface_Alerts = 1,
 
   MenuSection_Departures = 1,
-  MenuSection_Departures_NumItems = 3,
+  // MenuSection_Departures_NumItems = 3, // See NUM_DEPARTURES instead
 };
-
 
 // https://github.com/coredevices/PebbleOS/blob/eb6dab30c944b115094d3a6dc2b71247f92aa8f4/src/fw/applib/ui/menu_layer_system_cells.c#L30
 #define MENU_CELL_SMALL_BASIC_CELL_HEIGHT 44
@@ -37,6 +36,143 @@ static int s_current_icon = 0;
 static GBitmap* s_ICON_PBL_WARNING_25;
 static GBitmap* s_ICON_T_TRAIN_25;
 
+typedef enum GtfsRouteType {
+  GtfsRouteType_Tram = 0,
+  GtfsRouteType_Metro = 1,
+  GtfsRouteType_Rail = 2,
+  GtfsRouteType_Bus = 3,
+  GtfsRouteType_Ferry = 4,
+  GtfsRouteType_CableCar = 5,
+  GtfsRouteType_AerialLift = 6,
+  GtfsRouteType_Funicular = 7,
+  GtfsRouteType_Trolleybus = 11,
+  GtfsRouteType_Monorail = 12,
+} RouteType;
+
+// https://birchdeparturesfromstop.catenarymaps.org/departures_at_stop?stop_id=CUS&chateau_id=metra&greater_than_time=1782583302&less_than_time=1782586913&include_shapes=false
+// Mostly from event, but some data must be looked up
+typedef struct CatenaryStopEventBasic {
+  // From events (catenary-backend/src/birch/departures_at_osm_station.rs StopEvent)
+  time_t scheduled_arrival;
+  time_t scheduled_departure;
+  time_t realtime_arrival;
+  time_t realtime_departure;
+
+  bool trip_modified;
+  bool stop_cancelled;
+  bool trip_cancelled;
+  bool trip_deleted;
+
+  char* headsign;
+  char* vehicle_number;
+  char* trip_short_name;
+
+  // From routes
+  char* route_name; // Short name, but if empty then long name
+  GColor route_color;
+  GColor route_text_color;
+  RouteType route_type;
+
+  // From agencies
+  char* agency_name;
+} CatenaryStopEventBasic;
+
+typedef struct CatenaryStopBasic {
+  char* stop_name;
+  char* timezone;
+  time_t timezone_offset;
+} CatenaryStopBasic;
+
+typedef struct CatenaryAlertBasic {
+  char* header_text;
+  char* description_text;
+} CatenaryAlertBasic;
+
+static CatenaryStopBasic s_stop = {
+  .stop_name = "Chicago Union Station",
+  .timezone = "America/Chicago",
+  .timezone_offset = -18000,
+};
+
+enum { NUM_DEPARTURES = 3 };
+
+static CatenaryStopEventBasic s_departures[NUM_DEPARTURES] = {
+  (CatenaryStopEventBasic){
+    .scheduled_arrival = 1782583920,
+    .scheduled_departure = 1782583920,
+    .realtime_arrival = 0,
+    .realtime_departure = 0,
+    .trip_modified = false,
+    .stop_cancelled = false,
+    .trip_cancelled = false,
+    .trip_deleted = false,
+    .headsign = "Chicago Union Station",
+    .vehicle_number = NULL,
+    .trip_short_name = "2714",
+
+    .route_name = "MD-W",
+    .route_color = GColorFromHEX(0xf1ad0e),
+    .route_text_color = GColorBlack,
+    .route_type = GtfsRouteType_Rail,
+
+    .agency_name = "Metra",
+  },
+  (CatenaryStopEventBasic){
+    .scheduled_arrival = 1782584400,
+    .scheduled_departure = 1782584400,
+    .realtime_arrival = 0,
+    .realtime_departure = 0,
+    .trip_modified = false,
+    .stop_cancelled = false,
+    .trip_cancelled = false,
+    .trip_deleted = false,
+    .headsign = "Chicago Union Station",
+    .vehicle_number = NULL,
+    .trip_short_name = "2016",
+
+    .route_name = "BNSF",
+    .route_color = GColorFromHEX(0x29c233),
+    .route_text_color = GColorWhite,
+    .route_type = GtfsRouteType_Rail,
+
+    .agency_name = "Metra",
+  },
+  (CatenaryStopEventBasic){
+    .scheduled_arrival = 1782585180,
+    .scheduled_departure = 1782585180,
+    .realtime_arrival = 0,
+    .realtime_departure = 0,
+    .trip_modified = false,
+    .stop_cancelled = false,
+    .trip_cancelled = false,
+    .trip_deleted = false,
+    .headsign = "Aurora",
+    .vehicle_number = NULL,
+    .trip_short_name = "2015",
+
+    .route_name = "BNSF",
+    .route_color = GColorFromHEX(0x29c233),
+    .route_text_color = GColorWhite,
+    .route_type = GtfsRouteType_Rail,
+
+    .agency_name = "Metra",
+  },
+};
+
+enum { NUM_ALERTS = 1 };
+
+static CatenaryAlertBasic s_alerts[1] = {
+  (CatenaryAlertBasic){
+    .header_text = "MDW Inbound Delayed",
+    .description_text = "MDW inbound and trains may be operating up to 45 minutes behind schedule due to earlier mechanical problems. Please visit MetraTracker.com for the location of your train."
+  }
+};
+
+static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
+  time_t adjusted = time + timezone_offset;
+  return gmtime(&adjusted);
+}
+
 static uint16_t menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
   return NUM_MENU_SECTIONS;
 }
@@ -46,7 +182,7 @@ static uint16_t menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t secti
     case MenuSection_Preface:
       return MenuSection_Preface_NumItems;
     case MenuSection_Departures:
-      return MenuSection_Departures_NumItems;
+      return NUM_DEPARTURES;
     default:
       return 0;
   }
@@ -55,7 +191,7 @@ static uint16_t menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t secti
 static int16_t menu_get_header_height_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
   switch(section_index) {
     case MenuSection_Preface:
-      return 0;
+      return MENU_CELL_BASIC_HEADER_HEIGHT;
     case MenuSection_Departures:
       return MENU_CELL_BASIC_HEADER_HEIGHT;
     default:
@@ -65,6 +201,9 @@ static int16_t menu_get_header_height_callback(MenuLayer *menu_layer, uint16_t s
 
 static void menu_draw_header_callback(GContext* ctx, const Layer *cell_layer, uint16_t section_index, void *data) {
   switch(section_index) {
+    case MenuSection_Preface: {
+      menu_cell_basic_header_draw(ctx, cell_layer, s_stop.stop_name);
+    } break;
     case MenuSection_Departures: {
       menu_cell_basic_header_draw(ctx, cell_layer, "Departures + Arrivals");
     } break;
@@ -82,23 +221,39 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
         //   menu_cell_basic_draw(ctx, cell_layer, "2026-06-27 13:01", "Showing departures after this time", NULL);
         // } break;
         case MenuSection_Preface_Alerts: {
-          menu_cell_basic_draw(ctx, cell_layer, "2 Alerts", "MDN Train #2620 is on the move", s_ICON_PBL_WARNING_25);
+          char first_row[12];
+          snprintf(first_row, 12, "%i Alerts", NUM_ALERTS);
+
+          menu_cell_basic_draw(ctx, cell_layer, first_row, s_alerts[0].header_text, s_ICON_PBL_WARNING_25);
         } break;
       }
       break;
-    case MenuSection_Departures:
-      switch (cell_index->row) {
-        case 0: {
-          menu_cell_basic_draw(ctx, cell_layer, "13:12 Chicago Union Station", "MD-W 2714", s_ICON_T_TRAIN_25);
-        } break;
-        case 1: {
-          menu_cell_basic_draw(ctx, cell_layer, "13:20 Chicago Union Station", "BNSF 2016", s_ICON_T_TRAIN_25);
-        } break;
-        case 2: {
-          menu_cell_basic_draw(ctx, cell_layer, "13:33 Aurora", "BNSF 2015", s_ICON_T_TRAIN_25);
-        } break;
+    case MenuSection_Departures: {
+      int i = cell_index->row;
+      time_t time_to_display;
+      if(s_departures[i].realtime_departure) { time_to_display = s_departures[i].realtime_departure; }
+      else if(s_departures[i].realtime_arrival) { time_to_display = s_departures[i].realtime_arrival; }
+      else if(s_departures[i].scheduled_departure) { time_to_display = s_departures[i].scheduled_departure; }
+      else if(s_departures[i].scheduled_arrival) { time_to_display = s_departures[i].scheduled_arrival; }
+      else { time_to_display = 0; }
+
+      struct tm* displayed_time = tm_from_time_timezone(time_to_display, s_stop.timezone_offset);
+
+      char time_str[8];
+      if(clock_is_24h_style()) {
+        strftime(time_str, 8, "%H:%M", displayed_time);
+      } else {
+        strftime(time_str, 8, "%I:%M %P", displayed_time);
       }
-      break;
+
+      char first_row[32];
+      snprintf(first_row, 32, "%s %s", time_str, s_departures[i].headsign);
+
+      char second_row[32];
+      snprintf(second_row, 32, "%s %s (%s)", s_departures[i].route_name, s_departures[i].trip_short_name, s_departures[i].agency_name);
+
+      menu_cell_basic_draw(ctx, cell_layer, first_row, second_row, NULL);
+    } break;
   }
 }
 
