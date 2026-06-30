@@ -1,0 +1,82 @@
+edition = "2024";
+
+import "nanopb.proto";
+
+enum RouteType {
+  TRAM       = 0;
+  METRO      = 1;
+  RAIL       = 2;
+  BUS        = 3;
+  FERRY      = 4;
+  CABLE_CAR  = 5;
+  AERIAL     = 6;
+  FUNICULAR  = 7;
+  TROLLEYBUS = 11;
+  MONORAIL   = 12;
+}
+
+message StopBasic {
+  /* required */ string stop_name      = 1 [(nanopb).max_size = 64];
+  /* required */ string timezone       = 2 [(nanopb).max_size = 40];
+  /* required */ sint32 timezone_offset = 3;
+}
+
+// https://birchdeparturesfromstop.catenarymaps.org/departures_at_stop?stop_id=CUS&chateau_id=metra&greater_than_time=1782583302&less_than_time=1782586913&include_shapes=false
+// Mostly from event, but some data must be looked up
+message StopEventBasic {
+  // From events (catenary-backend/src/birch/departures_at_osm_station.rs StopEvent)
+
+  // The following fields are Unix times (32-bit time_t).
+  /* optional */ sfixed32 scheduled_arrival   = 1;
+  /* optional */ sfixed32 scheduled_departure = 2;
+  /* optional */ sfixed32 realtime_arrival    = 3;
+  /* optional */ sfixed32 realtime_departure  = 4;
+
+  /* required */ bool trip_modified   = 5;
+  /* required */ bool stop_cancelled  = 6;
+  /* required */ bool trip_cancelled  = 7;
+  /* required */ bool trip_deleted    = 8;
+
+	/* required */ string   trip_id         = 9  [(nanopb).max_size = 64];
+
+  /* optional */ string   headsign        = 10 [(nanopb).max_size = 64];
+  /* optional */ string   vehicle_number  = 11 [(nanopb).max_size = 16];
+  /* optional */ string   trip_short_name = 12 [(nanopb).max_size = 16];
+
+  // From routes (catenary-backend/src/models.rs Route)
+
+  // The JS client must check route_short_name then route_long_name
+  // Both are /* optional */, but at least one must be provided
+  /* required */ string   route_name       = 13 [(nanopb).max_size = 32];
+  /* optional */ uint32   route_color      = 14 [default = 255]; // GColor8 argb byte; default white
+  /* optional */ uint32   route_text_color = 15 [default = 0]; // GColor8 argb byte; default black
+  /* required */ RouteType route_type     = 16;
+
+  // From agencies (catenary-backend/src/models.rs Agency)
+  /* required */ string   agency_name     = 17 [(nanopb).max_size = 64];
+}
+
+// catenary-backend/src/aspen_dataset.rs AspenisedAlert
+message AlertBasic {
+  /* optional */ string header_text      = 1 [(nanopb).max_size = 128];
+  /* optional */ string description_text = 2 [(nanopb).max_size = 512];
+}
+
+message DeparturesBoardResponse {
+  /* required */ bool  success = 1 [default = false];
+
+  // The following fields may be ommitted if not successful.
+  StopBasic stop = 2;
+  repeated AlertBasic alerts = 3 [(nanopb).max_count = 16];
+  repeated StopEventBasic stop_events = 4 [(nanopb).max_count = 16];
+  bool truncated = 5 [default = false];
+}
+
+message DeparturesBoardRequest {
+  /* required */ string chateau_id = 1 [(nanopb).max_size = 64];
+  /* required */ string stop_id = 2 [(nanopb).max_size = 64];
+
+  // The following fields are Unix times (32-bit time_t).
+  /* required */ sfixed32 greater_than_time = 3;
+  /* required */ sfixed32 less_than_time = 4;
+}

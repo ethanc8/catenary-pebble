@@ -34,3 +34,12 @@ set `pebble.watchapp.watchface` to `true` in `package.json`.
 ## Documentation
 
 Full SDK docs, tutorials, and API reference: <https://developer.repebble.com>
+
+## Random notes
+
+### Regenerating from protobufs
+
+```bash
+cd src/c/proto
+../nanopb/generator/nanopb_generator.py departures_board.proto -L '#include "../nanopb/%s"'
+```
