@@ -92,12 +92,13 @@ typedef struct _StopEventBasic { /* From events (catenary-backend/src/birch/depa
     char agency_name[64];
 } StopEventBasic;
 
-/* catenary-backend/src/aspen_dataset.rs AspenisedAlert */
+/* catenary-backend/src/aspen_dataset.rs AspenisedAlert
+ https://gtfs.org/documentation/realtime/reference/#message-alert */
 typedef struct _AlertBasic {
-    /* optional */
+    /* required */
     bool has_header_text;
     char header_text[128];
-    /* optional */
+    /* required */
     bool has_description_text;
     char description_text[512];
 } AlertBasic;

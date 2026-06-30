@@ -221,10 +221,14 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
       }
 
       char first_row[32];
-      snprintf(first_row, 32, "%s %s", time_str, s_response.stop_events[i].headsign);
+      snprintf(first_row, 32, "%s %s", time_str, 
+        s_response.stop_events[i].has_headsign ? s_response.stop_events[i].headsign : "[No headsign]");
 
       char second_row[32];
-      snprintf(second_row, 32, "%s %s (%s)", s_response.stop_events[i].route_name, s_response.stop_events[i].trip_short_name, s_response.stop_events[i].agency_name);
+      snprintf(second_row, 32, "%s %s (%s)", 
+        s_response.stop_events[i].route_name, 
+        s_response.stop_events[i].has_trip_short_name ? s_response.stop_events[i].trip_short_name : "", 
+        s_response.stop_events[i].agency_name);
 
       menu_cell_basic_draw(ctx, cell_layer, first_row, second_row, NULL);
     } break;

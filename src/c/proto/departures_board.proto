@@ -57,9 +57,10 @@ message StopEventBasic {
 }
 
 // catenary-backend/src/aspen_dataset.rs AspenisedAlert
+// https://gtfs.org/documentation/realtime/reference/#message-alert
 message AlertBasic {
-  /* optional */ string header_text      = 1 [(nanopb).max_size = 128];
-  /* optional */ string description_text = 2 [(nanopb).max_size = 512];
+  /* required */ string header_text      = 1 [(nanopb).max_size = 128];
+  /* required */ string description_text = 2 [(nanopb).max_size = 512];
 }
 
 message DeparturesBoardResponse {
