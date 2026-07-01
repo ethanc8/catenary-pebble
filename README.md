@@ -42,4 +42,14 @@ Full SDK docs, tutorials, and API reference: <https://developer.repebble.com>
 ```bash
 cd src/c/proto
 ../nanopb/generator/nanopb_generator.py departures_board.proto -L '#include "../nanopb/%s"'
+npx pbjs -t static-module -w commonjs --keep-case --dts departures_board.proto -o departures_board.pb.js
+```
+
+### protobuf libraries and deps
+
+We needed to install an old version of `long`, and the polyfill `fast-text-encoding`:
+
+```bash
+npm install long@3.2.0 --save
+npm install fast-text-encoding
 ```

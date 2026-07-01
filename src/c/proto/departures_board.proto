@@ -1,6 +1,6 @@
 edition = "2024";
 
-import "nanopb.proto";
+import "third-party/nanopb.proto";
 
 enum RouteType {
   TRAM       = 0;

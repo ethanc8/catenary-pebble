@@ -2,9 +2,10 @@
   "name": "catenary-pebble",
   "author": "MakeAwesomeHappen",
   "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
-  "dependencies": {},
   "pebble": {
     "displayName": "catenary-pebble",
     "uuid": "1fb1c668-7fe0-4f5e-a8ab-3b72c1fa2160",
@@ -39,5 +40,12 @@
         }
       ]
     }
+  },
+  "devDependencies": {
+    "protobufjs-cli": "^2.5.6"
+  },
+  "dependencies": {
+    "fast-text-encoding": "^1.0.6",
+    "long": "^3.2.0"
   }
 }
