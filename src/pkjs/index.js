@@ -5,10 +5,19 @@ try {
 
 require('fast-text-encoding');
 
+var keys = require('message_keys');
+
 console.log("catenary-proto PKJS process");
 
 var dbproto = require('./proto/departures_board.pb.js');
 console.log("Success importing proto");
+
+const ChunkType = {
+  DeparturesBoardRequest: 0,
+  DeparturesBoardResponse: 1,
+};
+
+const BUFFER_SIZE = 8000;
 
 // try {
 // } catch (e) {
@@ -99,6 +108,85 @@ const response = dbproto.DeparturesBoardResponse.encode({
 }).finish();
 
 console.log('Success building sample response');
+
+Pebble.addEventListener('ready', function() {
+  // https://developer.repebble.com/guides/communication/advanced-communication/
+  var array = [];
+  for(var i = 0; i < response.byteLength; i++) {
+    array.push(response[i]);
+  }
+
+  console.log('Beginning transmission');
+
+  transmitBuffer(array);
+});
+
+function transmitBuffer(array) {
+  var index = 0;
+  var arrayLength = array.length;
+
+  // Transmit the length for array allocation
+  Pebble.sendAppMessage({
+    'ChunkType': ChunkType.DeparturesBoardResponse,
+    'DataLength': arrayLength
+  }, function() {
+    // Success, begin sending chunks
+    sendChunk(array, index, arrayLength);
+  }, function(e) {
+    console.log('Failed to initiate buffer transfer!');
+    console.log(e);
+  })
+}
+
+function sendChunk(array, index, arrayLength) {
+  try {
+  // Determine the next chunk size
+  var chunkSize = BUFFER_SIZE;
+  if(arrayLength - index < BUFFER_SIZE) {
+    // Resize to fit just the remaining data items
+    chunkSize = arrayLength - index;
+  }
+
+  // Prepare the dictionary
+  var dict = {
+    'ChunkType': ChunkType.DeparturesBoardResponse,
+    'DataChunk': array.slice(index, index + chunkSize),
+    'ChunkSize': chunkSize,
+    'Index': index
+  };
+
+  console.log('Sending chunk ' + index);
+  console.log(dict);
+
+  // Send the chunk
+  Pebble.sendAppMessage(dict, function() {
+    console.log('Successfully sent chunk ' + index);
+
+    // Success
+    index += chunkSize;
+
+    if(index < arrayLength) {
+      // Send the next chunk
+      sendChunk(array, index, arrayLength);
+    } else {
+      console.log('Completed transmission');
+      // Complete!
+      Pebble.sendAppMessage({
+        'ChunkType': ChunkType.DeparturesBoardResponse,
+        'Complete': 0
+      });
+    }
+  }, function(e) {
+    console.log('Failed to send chunk with index ' + index);
+    console.log(e);
+  });
+  } catch(e) {
+    console.log("Error occurred");
+    console.log(e.message);
+    console.log("Stack trace:");
+    console.log(e.stack);
+  }
+}
 
 } catch(e) {
 	console.log("Error occurred");

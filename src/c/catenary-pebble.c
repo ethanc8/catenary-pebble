@@ -3,6 +3,8 @@
 #include "nanopb/pb_decode.h"
 #include "proto/departures_board.pb.h"
 
+#include "util/comm.h"
+
 #if _CLANGD
   #define PBL_DISPLAY_HEIGHT 228
 #endif
@@ -31,8 +33,9 @@ enum {
 // Small is 180 and large is 228
 #define LARGE_SCREEN_SIZE_CUTOFF 201
 
-static Window *s_main_window;
-static MenuLayer *s_menu_layer;
+static Window* s_main_window = NULL;
+static Window* s_loading_window = NULL;
+static MenuLayer* s_menu_layer;
 
 static int s_current_icon = 0;
 
@@ -316,7 +319,34 @@ static void main_window_unload(Window *window) {
   // gbitmap_destroy(s_background_bitmap);
 }
 
-static void init() {
+static Layer* s_loading_window_layer;
+static TextLayer* s_loading_text_layer;
+
+static void loading_window_load(Window *window) {
+  s_loading_window_layer = window_get_root_layer(window);
+	GRect bounds = layer_get_bounds(s_loading_window_layer);
+
+	// Time layer
+	s_loading_text_layer = text_layer_create(
+		GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50)
+	);
+	text_layer_set_background_color(s_loading_text_layer, GColorClear);
+	text_layer_set_text_color(s_loading_text_layer, GColorBlack);
+	text_layer_set_font(s_loading_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+	text_layer_set_text_alignment(s_loading_text_layer, GTextAlignmentCenter);
+  text_layer_set_text(s_loading_text_layer, "Loading...");
+
+	layer_add_child(s_loading_window_layer, text_layer_get_layer(s_loading_text_layer));
+}
+
+static void loading_window_unload(Window *window) {
+  text_layer_destroy(s_loading_text_layer);
+}
+
+static void done_loading() {
+  window_stack_pop(true);
+  window_destroy(s_loading_window);
+
   s_main_window = window_create();
   window_set_window_handlers(s_main_window, (WindowHandlers) {
     .load = main_window_load,
@@ -325,8 +355,31 @@ static void init() {
   window_stack_push(s_main_window, true);
 }
 
+static void departures_board_response_callback(uint8_t* data, int size) {
+  text_layer_set_text(s_loading_text_layer, "Done loading!");
+}
+
+static void init() {
+  comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;
+  comm_init();
+
+  s_loading_window = window_create();
+  window_set_window_handlers(s_loading_window, (WindowHandlers) {
+    .load = loading_window_load,
+    .unload = loading_window_unload,
+  });
+  window_stack_push(s_loading_window, true);
+}
+
 static void deinit() {
-  window_destroy(s_main_window);
+  comm_deinit();
+  
+  if(s_loading_window) {
+    window_destroy(s_loading_window);
+  }
+  if(s_main_window) {
+    window_destroy(s_main_window);
+  }
 }
 
 int main(void) {

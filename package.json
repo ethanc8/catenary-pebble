@@ -24,7 +24,12 @@
       "watchface": false
     },
     "messageKeys": [
-      "DeparturesBoard"
+      "DataChunk",
+      "ChunkSize",
+      "Index",
+      "ChunkType",
+      "Complete",
+      "DataLength"
     ],
     "resources": {
       "media": [
