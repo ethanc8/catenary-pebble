@@ -42,108 +42,7 @@ static int s_current_icon = 0;
 static GBitmap* s_ICON_PBL_WARNING_25;
 static GBitmap* s_ICON_T_TRAIN_25;
 
-static DeparturesBoardResponse s_response = {
-  .success = true,
-
-  .stop = (StopBasic){
-    .stop_name = "Chicago Union Station",
-    .timezone = "America/Chicago",
-    .timezone_offset = -18000,
-  },
-
-  .alerts_count = 1,
-  .alerts = {
-    (AlertBasic){
-      .header_text = "MDW Inbound Delayed",
-      .description_text = "MDW inbound and trains may be operating up to 45 minutes behind schedule due to earlier mechanical problems. Please visit MetraTracker.com for the location of your train."
-    }
-  },
-
-  .stop_events_count = 3,
-  .stop_events = {
-    (StopEventBasic){
-      .has_scheduled_arrival = true,
-      .has_scheduled_departure = true,
-      .has_realtime_arrival = false,
-      .has_realtime_departure = false,
-
-      .scheduled_arrival = 1782583920,
-      .scheduled_departure = 1782583920,
-
-      .trip_modified = false,
-      .stop_cancelled = false,
-      .trip_cancelled = false,
-      .trip_deleted = false,
-
-      .has_headsign = true,
-      .headsign = "Chicago Union Station",
-      .has_vehicle_number = false,
-      .has_trip_short_name = true,
-      .trip_short_name = "2714",
-
-      .route_name = "MD-W",
-      .route_color = GColorPastelYellowARGB8,
-      .route_text_color = GColorBlackARGB8,
-      .route_type = RouteType_RAIL,
-
-      .agency_name = "Metra",
-    },
-    (StopEventBasic){
-      .has_scheduled_arrival = true,
-      .has_scheduled_departure = true,
-      .has_realtime_arrival = false,
-      .has_realtime_departure = false,
-
-      .scheduled_arrival = 1782584400,
-      .scheduled_departure = 1782584400,
-
-      .trip_modified = false,
-      .stop_cancelled = false,
-      .trip_cancelled = false,
-      .trip_deleted = false,
-
-      .has_headsign = true,
-      .headsign = "Chicago Union Station",
-      .has_vehicle_number = false,
-      .has_trip_short_name = true,
-      .trip_short_name = "2016",
-
-      .route_name = "BNSF",
-      .route_color = GColorDarkGreenARGB8,
-      .route_text_color = GColorWhiteARGB8,
-      .route_type = RouteType_RAIL,
-
-      .agency_name = "Metra",
-    },
-    (StopEventBasic){
-      .has_scheduled_arrival = true,
-      .has_scheduled_departure = true,
-      .has_realtime_arrival = false,
-      .has_realtime_departure = false,
-
-      .scheduled_arrival = 1782585180,
-      .scheduled_departure = 1782585180,
-
-      .trip_modified = false,
-      .stop_cancelled = false,
-      .trip_cancelled = false,
-      .trip_deleted = false,
-      
-      .has_headsign = true,
-      .headsign = "Aurora",
-      .has_vehicle_number = false,
-      .has_trip_short_name = true,
-      .trip_short_name = "2015",
-
-      .route_name = "BNSF",
-      .route_color = GColorDarkGreenARGB8,
-      .route_text_color = GColorWhiteARGB8,
-      .route_type = RouteType_RAIL,
-
-      .agency_name = "Metra",
-    },
-  },
-};
+static DeparturesBoardResponse s_response = DeparturesBoardResponse_init_zero;
 
 static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
   time_t adjusted = time + timezone_offset;
@@ -356,7 +255,21 @@ static void done_loading() {
 }
 
 static void departures_board_response_callback(uint8_t* data, int size) {
-  text_layer_set_text(s_loading_text_layer, "Done loading!");
+  pb_istream_t stream = pb_istream_from_buffer(data, size);
+
+  bool status = pb_decode(&stream, &DeparturesBoardResponse_msg, &s_response);
+  
+  if(!status) {
+    printf("Decoding DeparturesBoardResponse failed: %s\n", PB_GET_ERROR(&stream));
+
+    text_layer_set_text(s_loading_text_layer, "Loading failed 😞");
+
+    return;
+  }
+
+  printf("Decoding DeparturesBoardResponse succeeded!");
+
+  done_loading();
 }
 
 static void init() {
@@ -373,7 +286,7 @@ static void init() {
 
 static void deinit() {
   comm_deinit();
-  
+
   if(s_loading_window) {
     window_destroy(s_loading_window);
   }
