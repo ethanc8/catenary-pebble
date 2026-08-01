@@ -1,8 +1,9 @@
-// Polyfills for TextDecoder and TextEncoder
-// required for pbjs-minimal.js
-
 try {
 
+// MARK: - Front matter
+
+// Polyfills for TextDecoder and TextEncoder
+// required for pbjs-minimal.js
 require('fast-text-encoding');
 
 var keys = require('message_keys');
@@ -29,6 +30,8 @@ const GColorPastelYellowARGB8 = 0b11111110;
 const GColorBlackARGB8 = 0b11000000;
 const GColorDarkGreenARGB8 = 0b11000100;
 const GColorWhiteARGB8 = 0b11111111;
+
+// MARK: - Basic utilities
 
 // xhrRequest is from Pebble tutorial
 function xhrRequest(url, type, callback, errorCallback = function(){
@@ -95,6 +98,8 @@ function hexToGColor8Argb(hexStr, alpha = 255) {
 
   return argb; // 0-255, matches the .argb field of the union
 }
+
+// MARK: - Processing departures board
 
 function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_time) {
   // var url = "https://birchdeparturesfromstop.catenarymaps.org/departures_at_stop?stop_id=CUS&chateau_id=metra&greater_than_time=1782583302&less_than_time=1782586913&include_shapes=false";
@@ -197,6 +202,80 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
   });
 }
 
+// MARK: - Transmission of data
+
+function transmitBuffer(array) {
+  var index = 0;
+  var arrayLength = array.length;
+
+  // Transmit the length for array allocation
+  Pebble.sendAppMessage({
+    'ChunkType': ChunkType.DeparturesBoardResponse,
+    'DataLength': arrayLength
+  }, function() {
+    // Success, begin sending chunks
+    sendChunk(array, index, arrayLength);
+  }, function(e) {
+    console.log('Failed to initiate buffer transfer!');
+    console.log(e);
+  })
+}
+
+function sendChunk(array, index, arrayLength) {
+  try {
+  // Determine the next chunk size
+  var chunkSize = BUFFER_SIZE;
+  if(arrayLength - index < BUFFER_SIZE) {
+    // Resize to fit just the remaining data items
+    chunkSize = arrayLength - index;
+  }
+
+  // Prepare the dictionary
+  var dict = {
+    'ChunkType': ChunkType.DeparturesBoardResponse,
+    'DataChunk': array.slice(index, index + chunkSize),
+    'ChunkSize': chunkSize,
+    'Index': index
+  };
+
+  // console.log('Sending chunk ' + index);
+  // console.log(JSON.stringify(dict));
+
+  // Send the chunk
+  Pebble.sendAppMessage(dict, function() {
+    // console.log('Successfully sent chunk ' + index);
+
+    // Success
+    index += chunkSize;
+
+    if(index < arrayLength) {
+      // Send the next chunk
+      sendChunk(array, index, arrayLength);
+    } else {
+      console.log('Completed transmission');
+      // Complete!
+      Pebble.sendAppMessage({
+        'ChunkType': ChunkType.DeparturesBoardResponse,
+        'Complete': 0
+      });
+    }
+  }, function(e) {
+    console.log('Failed to send chunk with index ' + index);
+    console.log(e);
+  });
+  } catch(e) {
+    console.log("Error occurred");
+    console.log(e.message);
+    console.log("Stack trace:");
+    console.log(e.stack);
+  }
+}
+
+// MARK: - Event listeners
+Pebble.addEventListener('ready', () => getDeparturesBoard("CUS", "metra", 1785549849, 1785553456));
+
+// MARK: - (Old) Example departures board
+
 // const response = dbproto.DeparturesBoardResponse.encode({
 // 	success: true,
 
@@ -275,75 +354,6 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
 // }).finish();
 
 // console.log('Success building sample response');
-
-Pebble.addEventListener('ready', () => getDeparturesBoard("CUS", "metra", 1785549849, 1785553456));
-
-function transmitBuffer(array) {
-  var index = 0;
-  var arrayLength = array.length;
-
-  // Transmit the length for array allocation
-  Pebble.sendAppMessage({
-    'ChunkType': ChunkType.DeparturesBoardResponse,
-    'DataLength': arrayLength
-  }, function() {
-    // Success, begin sending chunks
-    sendChunk(array, index, arrayLength);
-  }, function(e) {
-    console.log('Failed to initiate buffer transfer!');
-    console.log(e);
-  })
-}
-
-function sendChunk(array, index, arrayLength) {
-  try {
-  // Determine the next chunk size
-  var chunkSize = BUFFER_SIZE;
-  if(arrayLength - index < BUFFER_SIZE) {
-    // Resize to fit just the remaining data items
-    chunkSize = arrayLength - index;
-  }
-
-  // Prepare the dictionary
-  var dict = {
-    'ChunkType': ChunkType.DeparturesBoardResponse,
-    'DataChunk': array.slice(index, index + chunkSize),
-    'ChunkSize': chunkSize,
-    'Index': index
-  };
-
-  // console.log('Sending chunk ' + index);
-  // console.log(JSON.stringify(dict));
-
-  // Send the chunk
-  Pebble.sendAppMessage(dict, function() {
-    // console.log('Successfully sent chunk ' + index);
-
-    // Success
-    index += chunkSize;
-
-    if(index < arrayLength) {
-      // Send the next chunk
-      sendChunk(array, index, arrayLength);
-    } else {
-      console.log('Completed transmission');
-      // Complete!
-      Pebble.sendAppMessage({
-        'ChunkType': ChunkType.DeparturesBoardResponse,
-        'Complete': 0
-      });
-    }
-  }, function(e) {
-    console.log('Failed to send chunk with index ' + index);
-    console.log(e);
-  });
-  } catch(e) {
-    console.log("Error occurred");
-    console.log(e.message);
-    console.log("Stack trace:");
-    console.log(e.stack);
-  }
-}
 
 } catch(e) {
 	console.log("Error occurred");

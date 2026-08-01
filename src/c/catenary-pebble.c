@@ -60,6 +60,8 @@ static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
   return gmtime(&adjusted);
 }
 
+// MARK: - Main menu
+
 static uint16_t menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
   return NUM_MENU_SECTIONS;
 }
@@ -192,6 +194,8 @@ static int16_t get_cell_height_callback(MenuLayer *menu_layer, MenuIndex *cell_i
   #endif
 }
 
+// MARK: - Main window
+
 static void main_window_load(Window *window) {
   // Here we load the bitmap assets
   // s_menu_icons[0] = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_BIG_WATCH);
@@ -238,6 +242,8 @@ static void main_window_unload(Window *window) {
 
   // gbitmap_destroy(s_background_bitmap);
 }
+
+// MARK: - Loading window
 
 static Layer* s_loading_window_layer;
 static TextLayer* s_loading_text_layer;
@@ -294,6 +300,8 @@ static void departures_board_response_callback(uint8_t* data, int size) {
 
   done_loading();
 }
+
+// MARK: - Main/init/deinit
 
 static void init() {
   comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;
