@@ -44,6 +44,17 @@ static GBitmap* s_ICON_T_TRAIN_25;
 
 static DeparturesBoardResponse s_response = DeparturesBoardResponse_init_zero;
 
+static DeparturesBoardRequest s_request = {
+  .has_chateau_id = true,
+  .chateau_id = "CUS",
+  .has_stop_id = true,
+  .stop_id = "metra",
+  .has_greater_than_time = true,
+  .greater_than_time = 1785549849,
+  .has_less_than_time = true,
+  .less_than_time = 1785553456,
+};
+
 static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
   time_t adjusted = time + timezone_offset;
   return gmtime(&adjusted);
@@ -91,7 +102,16 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
     case MenuSection_Preface:
       switch (cell_index->row) {
         case MenuSection_Preface_ModeSelection: {
-          menu_cell_basic_draw(ctx, cell_layer, "Showing trains only", "After 2026-06-27 13:01", s_ICON_T_TRAIN_25);
+          struct tm* displayed_time = tm_from_time_timezone(s_request.greater_than_time, s_response.stop.timezone_offset);
+
+          char time_str[32];
+          if(clock_is_24h_style()) {
+            strftime(time_str, 32, "After %b-%d %H:%M", displayed_time);
+          } else {
+            strftime(time_str, 32, "After $b-%d %I:%M %P", displayed_time);
+          }
+
+          menu_cell_basic_draw(ctx, cell_layer, "Showing trains only", time_str, s_ICON_T_TRAIN_25);
         } break;
         // case MenuSection_Preface_TimeSelection: {
         //   menu_cell_basic_draw(ctx, cell_layer, "2026-06-27 13:01", "Showing departures after this time", NULL);
@@ -209,6 +229,7 @@ static void main_window_load(Window *window) {
 static void main_window_unload(Window *window) {
   // Destroy the menu layer
   menu_layer_destroy(s_menu_layer);
+  s_menu_layer = NULL;
 
   // // Cleanup the menu icons
   // for (int i = 0; i < NUM_MENU_ICONS; i++) {
@@ -240,11 +261,13 @@ static void loading_window_load(Window *window) {
 
 static void loading_window_unload(Window *window) {
   text_layer_destroy(s_loading_text_layer);
+  s_loading_text_layer = NULL;
 }
 
 static void done_loading() {
   window_stack_pop(true);
   window_destroy(s_loading_window);
+  s_loading_window = NULL;
 
   s_main_window = window_create();
   window_set_window_handlers(s_main_window, (WindowHandlers) {
@@ -289,9 +312,11 @@ static void deinit() {
 
   if(s_loading_window) {
     window_destroy(s_loading_window);
+    s_loading_window = NULL;
   }
   if(s_main_window) {
     window_destroy(s_main_window);
+    s_main_window = NULL;
   }
 }
 
