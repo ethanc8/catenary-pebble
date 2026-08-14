@@ -2,6 +2,8 @@ edition = "2024";
 
 import "third-party/nanopb.proto";
 
+// Warning -- when editing field sizes, you must also change the FIELD_SIZES in src/pkjs/index.js!
+
 enum RouteType {
   TRAM       = 0;
   METRO      = 1;

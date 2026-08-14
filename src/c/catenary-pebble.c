@@ -5,6 +5,8 @@
 
 #include "util/comm.h"
 
+#define FOR_EMULATOR 1
+
 #if _CLANGD
   #define PBL_DISPLAY_HEIGHT 228
 #endif
@@ -304,6 +306,9 @@ static void departures_board_response_callback(uint8_t* data, int size) {
 // MARK: - Main/init/deinit
 
 static void init() {
+  if(FOR_EMULATOR) {
+    light_enable(true);
+  }
   comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;
   comm_init();
 
