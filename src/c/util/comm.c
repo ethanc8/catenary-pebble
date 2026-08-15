@@ -48,7 +48,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   // Complete?
   Tuple *complete_tuple = dict_find(iter, MESSAGE_KEY_Complete);
   if(complete_tuple) {
-    printf("Received completed transmission");
+    printf("Received completed transmission, chunk type %i, size %i", chunk_type, size);
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     comm_received_callbacks[chunk_type](data, size);
@@ -60,7 +60,7 @@ void comm_init() {
   app_message_register_inbox_received(inbox_received_handler);
 
   const int inbox_size = app_message_inbox_size_maximum();
-  const int outbox_size = 64;
+  const int outbox_size = APP_MESSAGE_OUTBOX_SIZE;
   app_message_open(inbox_size, outbox_size);
 }
 

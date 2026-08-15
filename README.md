@@ -7,6 +7,7 @@ A Pebble watchapp/watchface written in C using the Pebble SDK.
 ```sh
 pebble build                          # build for all targetPlatforms
 pebble install --emulator emery       # install on the emery emulator
+pebble install --emulator emery --logs # install on the emery emulator with logging enabled
 pebble install --phone <ip>           # install to a paired phone
 ```
 

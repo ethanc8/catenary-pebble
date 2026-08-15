@@ -16,6 +16,7 @@ console.log("Success importing proto");
 const ChunkType = {
   DeparturesBoardRequest: 0,
   DeparturesBoardResponse: 1,
+  JSReady: 2,
 };
 
 const BUFFER_SIZE = 8000;
@@ -337,7 +338,7 @@ function sendChunk(array, index, arrayLength) {
       // Complete!
       Pebble.sendAppMessage({
         'ChunkType': ChunkType.DeparturesBoardResponse,
-        'Complete': 0
+        'Complete': 1,
       });
     }
   }, function(e) {
@@ -353,7 +354,43 @@ function sendChunk(array, index, arrayLength) {
 }
 
 // MARK: - Event listeners
-Pebble.addEventListener('ready', () => getDeparturesBoard("CUS", "metra", 1785549849, 1785553456));
+// Pebble.addEventListener('ready', () => getDeparturesBoard("CUS", "metra", 1785549849, 1785553456));
+
+Pebble.addEventListener('ready', function() {
+  console.log('PebbleKit JS ready.');
+
+  // Update s_js_ready on watch
+  Pebble.sendAppMessage({
+    'ChunkType': ChunkType.JSReady,
+    'DataLength': 0,
+    'Complete': 1,
+  });
+});
+
+// Get AppMessage events
+Pebble.addEventListener('appmessage', function(e) {
+  // Get the dictionary from the message
+  const dict = e.payload;
+
+  console.log('Got message: ' + JSON.stringify(dict));
+
+  // We assume that it's just a single chunk of DeparturesBoardRequest
+  if(dict['ChunkType'] === ChunkType.DeparturesBoardRequest) {
+    if(dict['DataLength']&& dict['DataLength'] === dict['ChunkSize'] && dict['Index'] === 0) {
+      // TODO -- Why do I have to use '10000' instead of 'DataChunk', but only in the emulator
+      let decoded;
+      if(dict['10000']) {
+        decoded = dbproto.DeparturesBoardRequest.decode(dict['10000']);
+      } else if(dict['DataChunk']) {
+        decoded = dbproto.DeparturesBoardRequest.decode(dict['DataChunk']);
+      }
+      console.log('Decoded: ' + JSON.stringify(decoded));
+
+      getDeparturesBoard(decoded.stop_id, decoded.chateau_id, decoded.greater_than_time, decoded.less_than_time);
+    }
+  }
+});
+
 
 // MARK: - (Old) Example departures board
 

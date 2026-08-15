@@ -1,11 +1,12 @@
 #include "pebble.h"
 
 #include "nanopb/pb_decode.h"
+#include "nanopb/pb_encode.h"
 #include "proto/departures_board.pb.h"
 
 #include "util/comm.h"
 
-#define FOR_EMULATOR 1
+#define FOR_EMULATOR 0
 
 #if _CLANGD
   #define PBL_DISPLAY_HEIGHT 228
@@ -44,18 +45,11 @@ static int s_current_icon = 0;
 static GBitmap* s_ICON_PBL_WARNING_25;
 static GBitmap* s_ICON_T_TRAIN_25;
 
-static DeparturesBoardResponse s_response = DeparturesBoardResponse_init_zero;
+static DeparturesBoardResponse s_response;
 
-static DeparturesBoardRequest s_request = {
-  .has_chateau_id = true,
-  .chateau_id = "CUS",
-  .has_stop_id = true,
-  .stop_id = "metra",
-  .has_greater_than_time = true,
-  .greater_than_time = 1785549849,
-  .has_less_than_time = true,
-  .less_than_time = 1785553456,
-};
+static DeparturesBoardRequest s_request;
+
+static uint8_t s_request_buffer[APP_MESSAGE_OUTBOX_SIZE];
 
 static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
   time_t adjusted = time + timezone_offset;
@@ -121,8 +115,8 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
         //   menu_cell_basic_draw(ctx, cell_layer, "2026-06-27 13:01", "Showing departures after this time", NULL);
         // } break;
         case MenuSection_Preface_Alerts: {
-          char first_row[12];
-          snprintf(first_row, 12, "%i Alerts", s_response.alerts_count);
+          char first_row[14];
+          snprintf(first_row, 14, "%i Alerts", s_response.alerts_count);
 
           menu_cell_basic_draw(ctx, cell_layer, first_row, s_response.alerts[0].header_text, s_ICON_PBL_WARNING_25);
         } break;
@@ -247,10 +241,28 @@ static void main_window_unload(Window *window) {
 
 // MARK: - Loading window
 
+static void set_departures_board_request_default();
+static void request_departures_board();
+
 static Layer* s_loading_window_layer;
 static TextLayer* s_loading_text_layer;
 
+static void done_loading() {
+  window_stack_pop(true);
+  window_destroy(s_loading_window);
+  s_loading_window = NULL;
+
+  s_main_window = window_create();
+  window_set_window_handlers(s_main_window, (WindowHandlers) {
+    .load = main_window_load,
+    .unload = main_window_unload,
+  });
+  window_stack_push(s_main_window, true);
+}
+
 static void loading_window_load(Window *window) {
+  set_departures_board_request_default();
+  
   s_loading_window_layer = window_get_root_layer(window);
 	GRect bounds = layer_get_bounds(s_loading_window_layer);
 
@@ -272,17 +284,62 @@ static void loading_window_unload(Window *window) {
   s_loading_text_layer = NULL;
 }
 
-static void done_loading() {
-  window_stack_pop(true);
-  window_destroy(s_loading_window);
-  s_loading_window = NULL;
+// MARK: - Communication
 
-  s_main_window = window_create();
-  window_set_window_handlers(s_main_window, (WindowHandlers) {
-    .load = main_window_load,
-    .unload = main_window_unload,
-  });
-  window_stack_push(s_main_window, true);
+static void js_ready_callback() {
+  request_departures_board();
+}
+
+static void set_departures_board_request_default() {
+  time_t greater_than_time = time(NULL);
+  s_request = (DeparturesBoardRequest){
+    .has_chateau_id = true,
+    .chateau_id = "metra",
+    .has_stop_id = true,
+    .stop_id = "CUS",
+    .has_greater_than_time = true,
+    .greater_than_time = greater_than_time,
+    .has_less_than_time = true,
+    .less_than_time = greater_than_time + (60 * 60),
+  };
+}
+
+static void request_departures_board() {
+  pb_ostream_t stream = pb_ostream_from_buffer(s_request_buffer, sizeof(s_request_buffer));
+
+  bool status = pb_encode(&stream, DeparturesBoardRequest_fields, &s_request);
+
+  if(!status) {
+    printf("Encoding DeparturesBoardRequest failed: %s\n", PB_GET_ERROR(&stream));
+
+    text_layer_set_text(s_loading_text_layer, "Loading failed 😞");
+
+    return;
+  }
+
+  size_t message_length = stream.bytes_written;
+
+  DictionaryIterator* out_iter;
+
+  AppMessageResult result = app_message_outbox_begin(&out_iter);
+  if(result == APP_MSG_OK) {
+    ChunkType chunk_type = ChunkType_DeparturesBoardRequest;
+    bool complete = 1;
+    size_t index = 0;
+
+    dict_write_int(out_iter, MESSAGE_KEY_ChunkType, &chunk_type, sizeof(ChunkType), true);
+    dict_write_int(out_iter, MESSAGE_KEY_DataLength, &message_length, sizeof(size_t), false);
+    dict_write_data(out_iter, MESSAGE_KEY_DataChunk, s_request_buffer, message_length);
+    dict_write_int(out_iter, MESSAGE_KEY_ChunkSize, &message_length, sizeof(size_t), false);
+    dict_write_int(out_iter, MESSAGE_KEY_Index, &index, sizeof(size_t), false);
+    dict_write_int(out_iter, MESSAGE_KEY_Complete, &complete, sizeof(bool), true);
+
+    result = app_message_outbox_send();
+    if(result != APP_MSG_OK) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Error sending the outbox: %d", (int)result);
+    }
+    printf("Successfully sent DeparturesBoardRequest\n");
+  }
 }
 
 static void departures_board_response_callback(uint8_t* data, int size) {
@@ -309,6 +366,7 @@ static void init() {
   if(FOR_EMULATOR) {
     light_enable(true);
   }
+  comm_received_callbacks[ChunkType_JSReady] = js_ready_callback;
   comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;
   comm_init();
 
