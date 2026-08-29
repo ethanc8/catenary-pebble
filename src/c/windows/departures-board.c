@@ -21,7 +21,7 @@ enum {
   MenuSection_Preface_Alerts = 1,
 
   MenuSection_Departures = 1,
-  // MenuSection_Departures_NumItems = 3, // See s_response.stop_events_count instead
+  // MenuSection_Departures_NumItems = 3, // See s_response->stop_events_count instead
 };
 
 // https://github.com/coredevices/PebbleOS/blob/eb6dab30c944b115094d3a6dc2b71247f92aa8f4/src/fw/applib/ui/menu_layer_system_cells.c#L30
@@ -41,7 +41,7 @@ static MenuLayer* s_menu_layer;
 static GBitmap* s_ICON_PBL_WARNING_25;
 static GBitmap* s_ICON_T_TRAIN_25;
 
-static DeparturesBoardResponse s_response;
+static DeparturesBoardResponse* s_response;
 
 static DeparturesBoardRequest s_request = DeparturesBoardRequest_init_zero;
 
@@ -63,7 +63,7 @@ static uint16_t menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t secti
     case MenuSection_Preface:
       return MenuSection_Preface_NumItems;
     case MenuSection_Departures:
-      return s_response.stop_events_count;
+      return s_response->stop_events_count;
     default:
       return 0;
   }
@@ -83,7 +83,7 @@ static int16_t menu_get_header_height_callback(MenuLayer *menu_layer, uint16_t s
 static void menu_draw_header_callback(GContext* ctx, const Layer *cell_layer, uint16_t section_index, void *data) {
   switch(section_index) {
     case MenuSection_Preface: {
-      menu_cell_basic_header_draw(ctx, cell_layer, s_response.stop.stop_name);
+      menu_cell_basic_header_draw(ctx, cell_layer, s_response->stop.stop_name);
     } break;
     case MenuSection_Departures: {
       menu_cell_basic_header_draw(ctx, cell_layer, "Departures + Arrivals");
@@ -96,7 +96,7 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
     case MenuSection_Preface:
       switch (cell_index->row) {
         case MenuSection_Preface_ModeSelection: {
-          struct tm* displayed_time = tm_from_time_timezone(s_request.greater_than_time, s_response.stop.timezone_offset);
+          struct tm* displayed_time = tm_from_time_timezone(s_request.greater_than_time, s_response->stop.timezone_offset);
 
           char time_str[32];
           if(clock_is_24h_style()) {
@@ -112,11 +112,11 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
         // } break;
         case MenuSection_Preface_Alerts: {
           char first_row[14];
-          snprintf(first_row, 14, "%i Alerts", s_response.alerts_count);
+          snprintf(first_row, 14, "%i Alerts", s_response->alerts_count);
 
           char* first_header_text;
-          if(s_response.alerts_count > 0) {
-            first_header_text = s_response.alerts[0].header_text;
+          if(s_response->alerts_count > 0) {
+            first_header_text = s_response->alerts[0].header_text;
           } else {
             first_header_text = "";
           }
@@ -128,13 +128,13 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
     case MenuSection_Departures: {
       int i = cell_index->row;
       time_t time_to_display;
-      if(s_response.stop_events[i].has_realtime_departure) { time_to_display = s_response.stop_events[i].realtime_departure; }
-      else if(s_response.stop_events[i].has_realtime_arrival) { time_to_display = s_response.stop_events[i].realtime_arrival; }
-      else if(s_response.stop_events[i].has_scheduled_departure) { time_to_display = s_response.stop_events[i].scheduled_departure; }
-      else if(s_response.stop_events[i].has_scheduled_arrival) { time_to_display = s_response.stop_events[i].scheduled_arrival; }
+      if(s_response->stop_events[i].has_realtime_departure) { time_to_display = s_response->stop_events[i].realtime_departure; }
+      else if(s_response->stop_events[i].has_realtime_arrival) { time_to_display = s_response->stop_events[i].realtime_arrival; }
+      else if(s_response->stop_events[i].has_scheduled_departure) { time_to_display = s_response->stop_events[i].scheduled_departure; }
+      else if(s_response->stop_events[i].has_scheduled_arrival) { time_to_display = s_response->stop_events[i].scheduled_arrival; }
       else { time_to_display = 0; }
 
-      struct tm* displayed_time = tm_from_time_timezone(time_to_display, s_response.stop.timezone_offset);
+      struct tm* displayed_time = tm_from_time_timezone(time_to_display, s_response->stop.timezone_offset);
 
       char time_str[12];
       if(clock_is_24h_style()) {
@@ -145,13 +145,13 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
 
       char first_row[32];
       snprintf(first_row, 32, "%s %s", time_str, 
-        s_response.stop_events[i].has_headsign ? s_response.stop_events[i].headsign : "[No headsign]");
+        s_response->stop_events[i].has_headsign ? s_response->stop_events[i].headsign : "[No headsign]");
 
       char second_row[32];
       snprintf(second_row, 32, "%s %s (%s)", 
-        s_response.stop_events[i].route_name, 
-        s_response.stop_events[i].has_trip_short_name ? s_response.stop_events[i].trip_short_name : "", 
-        s_response.stop_events[i].agency_name);
+        s_response->stop_events[i].route_name, 
+        s_response->stop_events[i].has_trip_short_name ? s_response->stop_events[i].trip_short_name : "", 
+        s_response->stop_events[i].agency_name);
 
       menu_cell_basic_draw(ctx, cell_layer, first_row, second_row, NULL);
     } break;
@@ -197,6 +197,7 @@ static void main_window_load(Window *window) {
   // And also load the background
   // s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_BRAINS);
 
+  // Load bitmaps
   s_ICON_PBL_WARNING_25 = gbitmap_create_with_resource(RESOURCE_ID_ICON_PBL_WARNING_25);
   s_ICON_T_TRAIN_25 = gbitmap_create_with_resource(RESOURCE_ID_ICON_T_TRAIN_25);
 
@@ -226,6 +227,10 @@ static void main_window_unload(Window *window) {
   // Destroy the menu layer
   menu_layer_destroy(s_menu_layer);
   s_menu_layer = NULL;
+
+  // Cleanup response
+  free(s_response);
+  s_response = NULL;
 
   // // Cleanup the menu icons
   // for (int i = 0; i < NUM_MENU_ICONS; i++) {
@@ -356,9 +361,13 @@ static void request_departures_board() {
 }
 
 static void departures_board_response_callback(uint8_t* data, int size) {
+  printf("Received DeparturesBoardResponse, decoding...");
+
   pb_istream_t stream = pb_istream_from_buffer(data, size);
 
-  bool status = pb_decode(&stream, &DeparturesBoardResponse_msg, &s_response);
+  printf("Created stream from buffer.");
+
+  bool status = pb_decode(&stream, &DeparturesBoardResponse_msg, s_response);
 
   free(data); // allocated comm.c:22
   
@@ -378,6 +387,8 @@ static void departures_board_response_callback(uint8_t* data, int size) {
 // MARK: - Main/init/deinit
 
 void departures_board_push(DeparturesBoardRequest request) {
+  s_response = malloc(sizeof(DeparturesBoardResponse));
+
   s_request = request;
   fix_departures_board_request();
   comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;

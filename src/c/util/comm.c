@@ -76,7 +76,9 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     if(chunk_type < NUM_CHUNK_TYPES && comm_received_callbacks[chunk_type]) {
+      printf("Calling callback...");
       comm_received_callbacks[chunk_type](data, size);
+      printf("Callback returned.");
     }
     #pragma GCC diagnostic pop
 

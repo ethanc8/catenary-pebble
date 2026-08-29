@@ -20,7 +20,7 @@ const ChunkType = {
 };
 
 // Should be same as comm.h MAX_INBOX_CHUNK_SIZE
-const MAX_CHUNK_SIZE = 8000;
+const MAX_CHUNK_SIZE = 960;
 
 // try {
 // } catch (e) {

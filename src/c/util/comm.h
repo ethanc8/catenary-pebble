@@ -15,11 +15,11 @@ typedef enum ChunkType {
 // 64 bytes should be reserved for the signalling.
 
 #define APP_MESSAGE_OUTBOX_SIZE 256
-#define MAX_OUTBOX_CHUNK_SIZE 200
+#define MAX_OUTBOX_CHUNK_SIZE 192
 
-#define APP_MESSAGE_INBOX_SIZE 8200
+#define APP_MESSAGE_INBOX_SIZE 1024
 // Should be same as index.js MAX_CHUNK_SIZE
-#define MAX_INBOX_CHUNK_SIZE 8000
+#define MAX_INBOX_CHUNK_SIZE 960
 
 // The callback is responsible for freeing data.
 typedef void (*CommReceivedCallback)(uint8_t* data, int size);
