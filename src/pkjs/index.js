@@ -19,7 +19,8 @@ const ChunkType = {
   JSReady: 2,
 };
 
-const BUFFER_SIZE = 8000;
+// Should be same as comm.h MAX_INBOX_CHUNK_SIZE
+const MAX_CHUNK_SIZE = 8000;
 
 // try {
 // } catch (e) {
@@ -210,7 +211,7 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
             FIELD_SIZES.header_text
           ),
           description_text: truncateToUtf8Bytes(
-            findEnglish(alert_data.header_text.translation),
+            findEnglish(alert_data.description_text.translation),
             FIELD_SIZES.description_text
           ),
         });
@@ -313,8 +314,8 @@ function transmitBuffer(array) {
 function sendChunk(array, index, arrayLength) {
   try {
   // Determine the next chunk size
-  var chunkSize = BUFFER_SIZE;
-  if(arrayLength - index < BUFFER_SIZE) {
+  var chunkSize = MAX_CHUNK_SIZE;
+  if(arrayLength - index < MAX_CHUNK_SIZE) {
     // Resize to fit just the remaining data items
     chunkSize = arrayLength - index;
   }

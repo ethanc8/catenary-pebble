@@ -1,6 +1,6 @@
 #include "comm.h"
 
-CommReceivedCallback comm_received_callbacks[NUM_CHUNK_TYPES] = {};
+CommReceivedCallback comm_received_callbacks[NUM_CHUNK_TYPES] = {0};
 
 // Warning - It cannot handle receiving multiple different transmissions simulataneously.
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
@@ -18,8 +18,15 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   if(size_tuple) {
     size = size_tuple->value->int32;
 
-    // Allocate buffer for data
-    data = (uint8_t*)malloc(size * sizeof(uint8_t));
+    if(size) {
+      // Allocate buffer for data
+      data = (uint8_t*)malloc(size * sizeof(uint8_t));
+
+      if(!data) {
+        APP_LOG(APP_LOG_LEVEL_ERROR, "No more space to receive this transmission");
+        return;
+      }
+    }
 
     printf("Received beginning of transmission, chunk type %i, size %i", chunk_type, size);
   }
@@ -27,6 +34,11 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   // A chunk
   Tuple *chunk_tuple = dict_find(iter, MESSAGE_KEY_DataChunk);
   if(chunk_tuple) {
+    if(!data || !size) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Received DataChunk without having initialized buffer");
+      return;
+    }
+
     uint8_t *chunk_data = chunk_tuple->value->data;
 
     Tuple *chunk_size_t = dict_find(iter, MESSAGE_KEY_ChunkSize);
@@ -46,10 +58,15 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     printf("Received chunk index %i, size %i", index, chunk_size);
 
     // Save the chunk
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    memcpy(&data[index], chunk_data, chunk_size);
-    #pragma GCC diagnostic pop
+    if(index + chunk_size <= size) {
+      #pragma GCC diagnostic push
+      #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+      memcpy(&data[index], chunk_data, chunk_size);
+      #pragma GCC diagnostic pop
+    } else {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Received DataChunk which will overflow buffer of size DataLength");
+      return;
+    }
   }
 
   // Complete?
@@ -58,10 +75,13 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     printf("Received completed transmission, chunk type %i, size %i", chunk_type, size);
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    if(comm_received_callbacks[chunk_type]) {
+    if(chunk_type < NUM_CHUNK_TYPES && comm_received_callbacks[chunk_type]) {
       comm_received_callbacks[chunk_type](data, size);
     }
     #pragma GCC diagnostic pop
+
+    data = NULL;
+    size = 0;
   }
 }
 
@@ -73,6 +93,7 @@ static void nop() { }
 static void jsready_callback(uint8_t* data, int size) {
   user_jsready_callback();
   user_jsready_callback = nop;
+  has_jsready = true;
 }
 
 void run_when_jsready(VoidCallback callback) {
@@ -92,9 +113,7 @@ void comm_init() {
 
   app_message_register_inbox_received(inbox_received_handler);
 
-  const int inbox_size = app_message_inbox_size_maximum();
-  const int outbox_size = APP_MESSAGE_OUTBOX_SIZE;
-  app_message_open(inbox_size, outbox_size);
+  app_message_open(APP_MESSAGE_INBOX_SIZE, APP_MESSAGE_OUTBOX_SIZE);
 }
 
 void comm_deinit() {

@@ -38,8 +38,6 @@ static Window* s_main_window = NULL;
 static Window* s_loading_window = NULL;
 static MenuLayer* s_menu_layer;
 
-static int s_current_icon = 0;
-
 static GBitmap* s_ICON_PBL_WARNING_25;
 static GBitmap* s_ICON_T_TRAIN_25;
 
@@ -47,7 +45,7 @@ static DeparturesBoardResponse s_response;
 
 static DeparturesBoardRequest s_request = DeparturesBoardRequest_init_zero;
 
-static uint8_t s_request_buffer[APP_MESSAGE_OUTBOX_SIZE];
+static uint8_t s_request_buffer[MAX_OUTBOX_CHUNK_SIZE];
 
 static struct tm* tm_from_time_timezone(time_t time, time_t timezone_offset) {
   time_t adjusted = time + timezone_offset;
@@ -138,7 +136,7 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
 
       struct tm* displayed_time = tm_from_time_timezone(time_to_display, s_response.stop.timezone_offset);
 
-      char time_str[8];
+      char time_str[12];
       if(clock_is_24h_style()) {
         strftime(time_str, 8, "%H:%M", displayed_time);
       } else {
@@ -162,15 +160,8 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
 
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   // Use the row to specify which item will receive the select action
-  switch (cell_index->row) {
-    // // This is the menu item with the cycling icon
-    // case 1:
-    //   // Cycle the icon
-    //   s_current_icon = (s_current_icon + 1) % NUM_MENU_ICONS;
-    //   // After changing the icon, mark the layer to have it updated
-    //   layer_mark_dirty(menu_layer_get_layer(menu_layer));
-    //   break;
-  }
+  // switch (cell_index->row) {
+  // }
 }
 
 static int16_t get_cell_height_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *callback_context) { 
