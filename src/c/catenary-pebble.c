@@ -6,7 +6,9 @@
 
 #include "util/comm.h"
 
+#ifndef FOR_EMULATOR
 #define FOR_EMULATOR 0
+#endif
 
 #if _CLANGD
   #define PBL_DISPLAY_HEIGHT 228

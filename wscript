@@ -11,6 +11,8 @@ out = 'build'
 
 def options(ctx):
     ctx.load('pebble_sdk')
+    ctx.add_option('--emulator', action='store_true', default=False,
+                    help='Define FOR_EMULATOR=1 for this build (see src/c/catenary-pebble.c)')
 
 
 def configure(ctx):
@@ -32,6 +34,7 @@ def build(ctx):
     cached_env = ctx.env
     for platform in ctx.env.TARGET_PLATFORMS:
         ctx.env = ctx.all_envs[platform]
+        ctx.env.append_value('DEFINES', 'FOR_EMULATOR={}'.format(1 if ctx.options.emulator else 0))
         ctx.set_group(ctx.env.PLATFORM_NAME)
         app_elf = '{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
         ctx.pbl_build(source=ctx.path.ant_glob('src/c/**/*.c'), target=app_elf, bin_type='app')
