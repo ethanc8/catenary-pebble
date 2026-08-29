@@ -12,7 +12,9 @@ out = 'build'
 def options(ctx):
     ctx.load('pebble_sdk')
     ctx.add_option('--emulator', action='store_true', default=False,
-                    help='Define FOR_EMULATOR=1 for this build (see src/c/catenary-pebble.c)')
+                    help='Define FOR_EMULATOR=1 for this build. This causes the app to keep the screen backlight on.')
+    ctx.add_option('--debugger', action='store_true', default=False,
+                    help='Define WAIT_FOR_DEBUGGER=1 for this build. This causes the app to wait until a debugger sets the static variable s_wait_for_debugger to false.')
 
 
 def configure(ctx):
@@ -35,6 +37,7 @@ def build(ctx):
     for platform in ctx.env.TARGET_PLATFORMS:
         ctx.env = ctx.all_envs[platform]
         ctx.env.append_value('DEFINES', 'FOR_EMULATOR={}'.format(1 if ctx.options.emulator else 0))
+        ctx.env.append_value('DEFINES', 'WAIT_FOR_DEBUGGER={}'.format(1 if ctx.options.debugger else 0))
         ctx.set_group(ctx.env.PLATFORM_NAME)
         app_elf = '{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
         ctx.pbl_build(source=ctx.path.ant_glob('src/c/**/*.c'), target=app_elf, bin_type='app')

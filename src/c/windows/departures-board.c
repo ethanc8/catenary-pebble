@@ -1,18 +1,14 @@
 #include "pebble.h"
 
-#include "nanopb/pb_decode.h"
-#include "nanopb/pb_encode.h"
-#include "proto/departures_board.pb.h"
+#include "../nanopb/pb_decode.h"
+#include "../nanopb/pb_encode.h"
+#include "../proto/departures_board.pb.h"
 
-#include "util/comm.h"
+#include "../util/comm.h"
 
-#ifndef FOR_EMULATOR
-#define FOR_EMULATOR 0
-#endif
+#include "../conf.h"
 
-#if _CLANGD
-  #define PBL_DISPLAY_HEIGHT 228
-#endif
+#include "departures-board.h"
 
 #define NUM_MENU_SECTIONS 2
 
@@ -49,7 +45,7 @@ static GBitmap* s_ICON_T_TRAIN_25;
 
 static DeparturesBoardResponse s_response;
 
-static DeparturesBoardRequest s_request;
+static DeparturesBoardRequest s_request = DeparturesBoardRequest_init_zero;
 
 static uint8_t s_request_buffer[APP_MESSAGE_OUTBOX_SIZE];
 
@@ -246,11 +242,13 @@ static void main_window_unload(Window *window) {
   // }
 
   // gbitmap_destroy(s_background_bitmap);
+
+  window_destroy(window);
 }
 
 // MARK: - Loading window
 
-static void set_departures_board_request_default();
+static void fix_departures_board_request();
 static void request_departures_board();
 
 static Layer* s_loading_window_layer;
@@ -258,7 +256,7 @@ static TextLayer* s_loading_text_layer;
 
 static void done_loading() {
   window_stack_pop(true);
-  window_destroy(s_loading_window);
+
   s_loading_window = NULL;
 
   s_main_window = window_create();
@@ -270,8 +268,6 @@ static void done_loading() {
 }
 
 static void loading_window_load(Window *window) {
-  set_departures_board_request_default();
-  
   s_loading_window_layer = window_get_root_layer(window);
 	GRect bounds = layer_get_bounds(s_loading_window_layer);
 
@@ -291,6 +287,8 @@ static void loading_window_load(Window *window) {
 static void loading_window_unload(Window *window) {
   text_layer_destroy(s_loading_text_layer);
   s_loading_text_layer = NULL;
+
+  window_destroy(window);
 }
 
 // MARK: - Communication
@@ -299,18 +297,29 @@ static void js_ready_callback() {
   request_departures_board();
 }
 
-static void set_departures_board_request_default() {
-  time_t greater_than_time = time(NULL);
-  s_request = (DeparturesBoardRequest){
-    .has_chateau_id = true,
-    .chateau_id = "metra",
-    .has_stop_id = true,
-    .stop_id = "CUS",
-    .has_greater_than_time = true,
-    .greater_than_time = greater_than_time,
-    .has_less_than_time = true,
-    .less_than_time = greater_than_time + (60 * 60),
-  };
+static void fix_departures_board_request() {
+  if(!s_request.has_chateau_id || !s_request.has_stop_id) {
+    s_request = (DeparturesBoardRequest){
+      .has_chateau_id = true,
+      .chateau_id = "metra",
+      .has_stop_id = true,
+      .stop_id = "CUS",
+      .has_greater_than_time = s_request.has_greater_than_time,
+      .greater_than_time = s_request.greater_than_time,
+      .has_less_than_time = s_request.has_less_than_time,
+      .less_than_time = s_request.less_than_time,
+    };
+  }
+  if(!s_request.has_greater_than_time) {
+    time_t greater_than_time = time(NULL);
+    s_request.has_greater_than_time = true;
+    s_request.greater_than_time = greater_than_time;
+  }
+  if(!s_request.has_less_than_time) {
+    time_t less_than_time = s_request.greater_than_time + (60*60);
+    s_request.has_less_than_time = true;
+    s_request.less_than_time = less_than_time;
+  }
 }
 
 static void request_departures_board() {
@@ -377,13 +386,11 @@ static void departures_board_response_callback(uint8_t* data, int size) {
 
 // MARK: - Main/init/deinit
 
-static void init() {
-  if(FOR_EMULATOR) {
-    light_enable(true);
-  }
-  comm_received_callbacks[ChunkType_JSReady] = js_ready_callback;
+void departures_board_push(DeparturesBoardRequest request) {
+  s_request = request;
+  fix_departures_board_request();
   comm_received_callbacks[ChunkType_DeparturesBoardResponse] = departures_board_response_callback;
-  comm_init();
+  run_when_jsready(js_ready_callback);
 
   s_loading_window = window_create();
   window_set_window_handlers(s_loading_window, (WindowHandlers) {
@@ -391,23 +398,4 @@ static void init() {
     .unload = loading_window_unload,
   });
   window_stack_push(s_loading_window, true);
-}
-
-static void deinit() {
-  comm_deinit();
-
-  if(s_loading_window) {
-    window_destroy(s_loading_window);
-    s_loading_window = NULL;
-  }
-  if(s_main_window) {
-    window_destroy(s_main_window);
-    s_main_window = NULL;
-  }
-}
-
-int main(void) {
-  init();
-  app_event_loop();
-  deinit();
 }

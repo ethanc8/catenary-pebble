@@ -15,9 +15,14 @@ typedef enum ChunkType {
 
 // The callback is responsible for freeing data.
 typedef void (*CommReceivedCallback)(uint8_t* data, int size);
+typedef void (*VoidCallback)(void);
 
 extern CommReceivedCallback comm_received_callbacks[NUM_CHUNK_TYPES];
 
 void comm_init();
 
 void comm_deinit();
+
+// If JSReady has not been occurred yet, registers callback to run when JSReady occurs.
+// If JSReady has already occurred, runs the callback immediately
+void run_when_jsready(VoidCallback callback);

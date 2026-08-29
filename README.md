@@ -15,6 +15,10 @@ pebble install --phone <ip>           # install to a paired phone
 # Build and run on emery emulator
 pebble build -- --emulator && pebble install --emulator emery --logs
 
+# Build and debug on emery emulator
+pebble build -- --emulator --debugger && pebble install --emulator emery --logs
+pebble gdb --emulator emery
+
 # Build and install to a paired phone
 peble build && peble install --phone <ip>
 ```

@@ -58,12 +58,38 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     printf("Received completed transmission, chunk type %i, size %i", chunk_type, size);
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    comm_received_callbacks[chunk_type](data, size);
+    if(comm_received_callbacks[chunk_type]) {
+      comm_received_callbacks[chunk_type](data, size);
+    }
     #pragma GCC diagnostic pop
   }
 }
 
+static bool has_jsready = false;
+static VoidCallback user_jsready_callback;
+
+static void nop() { }
+
+static void jsready_callback(uint8_t* data, int size) {
+  user_jsready_callback();
+  user_jsready_callback = nop;
+}
+
+void run_when_jsready(VoidCallback callback) {
+  if(has_jsready) { callback(); }
+  else {
+    user_jsready_callback = callback;
+  }
+}
+
 void comm_init() {
+  has_jsready = false;
+  #if WAIT_FOR_DEBUGGER
+    has_jsready = true;
+  #endif
+  comm_received_callbacks[ChunkType_JSReady] = jsready_callback;
+  user_jsready_callback = nop;
+
   app_message_register_inbox_received(inbox_received_handler);
 
   const int inbox_size = app_message_inbox_size_maximum();

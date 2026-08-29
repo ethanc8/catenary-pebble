@@ -1,0 +1,16 @@
+#ifndef CATENARY_PEBBLE_CONF_H
+#define CATENARY_PEBBLE_CONF_H
+
+#ifndef FOR_EMULATOR
+	#define FOR_EMULATOR 0
+#endif
+
+#ifndef WAIT_FOR_DEBUGGER
+	#define WAIT_FOR_DEBUGGER 0
+#endif
+
+#if _CLANGD
+  #define PBL_DISPLAY_HEIGHT 228
+#endif
+
+#endif // CATENARY_PEBBLE_CONF_H
