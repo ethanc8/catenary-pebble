@@ -19,8 +19,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     size = size_tuple->value->int32;
 
     // Allocate buffer for data
-    // data = (uint8_t*)malloc(size * sizeof(uint8_t));
-    data = (uint8_t*)malloc(8000 * sizeof(uint8_t));
+    data = (uint8_t*)malloc(size * sizeof(uint8_t));
 
     printf("Received beginning of transmission, chunk type %i, size %i", chunk_type, size);
   }
@@ -31,9 +30,17 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     uint8_t *chunk_data = chunk_tuple->value->data;
 
     Tuple *chunk_size_t = dict_find(iter, MESSAGE_KEY_ChunkSize);
+    if(!chunk_size_t) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "DataChunk received without ChunkSize");
+      return;
+    }
     int chunk_size = chunk_size_t->value->int32;
 
     Tuple *index_t = dict_find(iter, MESSAGE_KEY_Index);
+    if(!index_t) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "DataChunk received without Index");
+      return;
+    }
     int index = index_t->value->int32;
 
     printf("Received chunk index %i, size %i", index, chunk_size);

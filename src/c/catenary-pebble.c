@@ -106,7 +106,7 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
           if(clock_is_24h_style()) {
             strftime(time_str, 32, "After %b-%d %H:%M", displayed_time);
           } else {
-            strftime(time_str, 32, "After $b-%d %I:%M %P", displayed_time);
+            strftime(time_str, 32, "After %b-%d %I:%M %P", displayed_time);
           }
 
           menu_cell_basic_draw(ctx, cell_layer, "Showing trains only", time_str, s_ICON_T_TRAIN_25);
@@ -118,7 +118,14 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
           char first_row[14];
           snprintf(first_row, 14, "%i Alerts", s_response.alerts_count);
 
-          menu_cell_basic_draw(ctx, cell_layer, first_row, s_response.alerts[0].header_text, s_ICON_PBL_WARNING_25);
+          char* first_header_text;
+          if(s_response.alerts_count > 0) {
+            first_header_text = s_response.alerts[0].header_text;
+          } else {
+            first_header_text = "";
+          }
+
+          menu_cell_basic_draw(ctx, cell_layer, first_row, first_header_text, s_ICON_PBL_WARNING_25);
         } break;
       }
       break;
@@ -337,6 +344,10 @@ static void request_departures_board() {
     result = app_message_outbox_send();
     if(result != APP_MSG_OK) {
       APP_LOG(APP_LOG_LEVEL_ERROR, "Error sending the outbox: %d", (int)result);
+
+      text_layer_set_text(s_loading_text_layer, "Loading failed 😞");
+
+      return;
     }
     printf("Successfully sent DeparturesBoardRequest\n");
   }
@@ -346,6 +357,8 @@ static void departures_board_response_callback(uint8_t* data, int size) {
   pb_istream_t stream = pb_istream_from_buffer(data, size);
 
   bool status = pb_decode(&stream, &DeparturesBoardResponse_msg, &s_response);
+
+  free(data); // allocated comm.c:22
   
   if(!status) {
     printf("Decoding DeparturesBoardResponse failed: %s\n", PB_GET_ERROR(&stream));

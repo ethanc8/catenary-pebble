@@ -160,6 +160,13 @@ function truncateToUtf8Bytes(str, maxUtf8Bytes) {
   return str.slice(0, i);
 }
 
+function findEnglish(translation) {
+  let found = translation.find((translation) => translation.language.toLowerCase().startsWith("en"));
+  if(found) { return found.text; }
+  if(translation.length > 0) return translation[0].text;
+  return "";
+}
+
 // MARK: - Processing departures board
 
 function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_time) {
@@ -189,8 +196,8 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
       truncated: false,
     };
 
-    for(chateau_alerts of Object.values(json.alerts)) {
-      for(alert_data of Object.values(chateau_alerts)) {
+    for(let chateau_alerts of Object.values(json.alerts)) {
+      for(let alert_data of Object.values(chateau_alerts)) {
         // console.log("Processing alert");
         // console.log(JSON.stringify(alert_data));
         if(response_data.alerts.length >= FIELD_SIZES.alerts) {
@@ -199,18 +206,18 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
         }
         response_data.alerts.push({
           header_text: truncateToUtf8Bytes(
-            alert_data.header_text.translation.find((translation) => translation.language.toLowerCase() == "en").text,
+            findEnglish(alert_data.header_text.translation),
             FIELD_SIZES.header_text
           ),
           description_text: truncateToUtf8Bytes(
-            alert_data.description_text.translation.find((translation) => translation.language.toLowerCase() == "en").text,
+            findEnglish(alert_data.header_text.translation),
             FIELD_SIZES.description_text
           ),
         });
       }
     }
 
-    for(event_data of json.events) {
+    for(let event_data of json.events) {
       // console.log("Processing stop event");
       // console.log(JSON.stringify(event_data));
       if(response_data.stop_events.length >= FIELD_SIZES.stop_events) {
@@ -259,8 +266,8 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
       console.log(JSON.stringify(response_data));
       // console.log(dbproto.DeparturesBoardResponse.decode(response));
 
-      var array = [];
-      for(var i = 0; i < response.byteLength; i++) {
+      let array = [];
+      for(let i = 0; i < response.byteLength; i++) {
         array.push(response[i]);
       }
 
