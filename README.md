@@ -1,15 +1,27 @@
 # catenary-pebble
 
-A Pebble watchapp/watchface written in C using the Pebble SDK.
+Pebble version of [Catenary Maps](https://catenarymaps.org/en/home/), a transit application.
 
-## Building & running
+## Target platforms
 
-<!-- ```sh
-pebble build                          # build for all targetPlatforms
-pebble install --emulator emery       # install on the emery emulator
-pebble install --emulator emery --logs # install on the emery emulator with logging enabled
-pebble install --phone <ip>           # install to a paired phone
-``` -->
+The following platforms are supported:
+* `chalk` (Pebble Technology Corp - Pebble Time Round)
+* `diorite` (Pebble Technology Corp - Pebble 2)
+* `emery` (Core Devices - Pebble Time 2)
+* `flint` (Core Devices - Pebble 2 Duo)
+* `gabbro` (Core Devices - Pebble Round 2)
+
+Note that support for round devices is not the best; UI design for the round devices is somewhat difficult, and the authors of this application do not own any round devices.
+
+The following platforms are not supported:
+* `aplite` (Pebble Technology Corp - Pebble Classic, Pebble Steel)
+  * Aplite doesn't have enough memory to load the departures board.
+* `basalt` (Pebble Technology Corp - Pebble Time, Pebble Time Steel)
+  * There is a crash in `menu_cell_basic_draw` that we were not able to debug.
+
+## Development
+
+### Building & running
 
 ```sh
 # Build and run on emery emulator
@@ -23,14 +35,7 @@ pebble gdb --emulator emery
 peble build && peble install --phone <ip>
 ```
 
-## Target platforms
-
-`targetPlatforms` in `package.json` controls which watches you build for. The
-modern Pebble hardware is **emery** (Pebble Time 2), **gabbro** (Pebble Round
-2), and **flint** (Pebble 2 Duo); the original Pebble platforms (aplite,
-basalt, chalk, diorite) are included by default for backwards compatibility.
-
-## Project layout
+### Project layout
 
 ```
 src/c/           C source for the watchapp
@@ -41,16 +46,9 @@ package.json     Project metadata (UUID, platforms, resources, message keys)
 wscript          Build rules — usually no need to edit
 ```
 
-By default this project is configured as a watchapp. To make it a watchface,
-set `pebble.watchapp.watchface` to `true` in `package.json`.
+### Random notes
 
-## Documentation
-
-Full SDK docs, tutorials, and API reference: <https://developer.repebble.com>
-
-## Random notes
-
-### Regenerating from protobufs
+#### Regenerating from protobufs
 
 ```bash
 cd src/c/proto
@@ -58,7 +56,7 @@ cd src/c/proto
 npx pbjs -t static-module -w commonjs --keep-case --dts departures_board.proto -o departures_board.pb.js
 ```
 
-### protobuf libraries and deps
+#### protobuf libraries and deps
 
 We needed to install an old version of `long`, and the polyfill `fast-text-encoding`:
 
