@@ -8,6 +8,7 @@
 
 #include "conf.h"
 #include "windows/departures-board.h"
+#include "windows/favorite-stops-screen.h"
 
 #if WAIT_FOR_DEBUGGER
   static volatile bool s_wait_for_debugger = true;
@@ -24,12 +25,7 @@ static void init() {
 
   comm_init();
 
-  departures_board_push((DeparturesBoardRequest){
-    .has_chateau_id = true,
-    .chateau_id = "metra",
-    .has_stop_id = true,
-    .stop_id = "CUS",
-  });
+  favorite_stops_screen_push();
 }
 
 static void deinit() {

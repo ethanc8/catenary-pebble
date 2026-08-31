@@ -161,11 +161,25 @@ function truncateToUtf8Bytes(str, maxUtf8Bytes) {
   return str.slice(0, i);
 }
 
-function findEnglish(translation) {
+function find_english_gtfsrt(translation, fallback) {
   let found = translation.find((translation) => translation.language.toLowerCase().startsWith("en"));
   if(found) { return found.text; }
   if(translation.length > 0) return translation[0].text;
-  return "";
+  return fallback;
+}
+
+function find_english_gtfs_static(translations, fallback) {
+  if(translations) {
+    let found = translations.EN || translations.en;
+    if(found) {
+      let left_index = 0;
+      let right_index = 0;
+      if(found[0] === '"') { left_index = 1; }
+      if(found[found.length - 1] === '"') { right_index = found.length - 1; }
+      return found.substring(left_index, right_index);
+    }
+  }
+  return fallback;
 }
 
 // MARK: - Processing departures board
@@ -173,6 +187,7 @@ function findEnglish(translation) {
 function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_time) {
   // var url = "https://birchdeparturesfromstop.catenarymaps.org/departures_at_stop?stop_id=CUS&chateau_id=metra&greater_than_time=1782583302&less_than_time=1782586913&include_shapes=false";
   let url = `https://birchdeparturesfromstop.catenarymaps.org/departures_at_stop?stop_id=${stop_id}&chateau_id=${chateau_id}&greater_than_time=${greater_than_time}&less_than_time=${less_than_time}&include_shapes=false`;
+  console.log(`Fetching ${url} ...`)
 
   xhrRequest(url, 'GET', function(response_text){
     try {
@@ -185,8 +200,7 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
     var response_data = {
       success: true,
       stop: {
-        // TODO - More intelligent translations handling
-        stop_name: truncateToUtf8Bytes(json.primary.stop_name_translations.EN, FIELD_SIZES.stop_name),
+        stop_name: truncateToUtf8Bytes(find_english_gtfs_static(json.primary.stop_name_translations, json.primary.stop_name), FIELD_SIZES.stop_name),
         timezone: truncateToUtf8Bytes(json.primary.timezone, FIELD_SIZES.timezone),
         timezone_offset: 0,
       },
@@ -207,11 +221,11 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
         }
         response_data.alerts.push({
           header_text: truncateToUtf8Bytes(
-            findEnglish(alert_data.header_text.translation),
+            find_english_gtfsrt(alert_data.header_text.translation, ""),
             FIELD_SIZES.header_text
           ),
           description_text: truncateToUtf8Bytes(
-            findEnglish(alert_data.description_text.translation),
+            find_english_gtfsrt(alert_data.description_text.translation, ""),
             FIELD_SIZES.description_text
           ),
         });
@@ -229,6 +243,8 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
       const route = json.routes[event_data.chateau][event_data.route_id];
       const agency = json.agencies[route.chateau][route.agency_id];
 
+      const route_short_name = find_english_gtfs_static(route.short_name_translations, route.short_name);
+
       response_data.stop_events.push({
         scheduled_arrival: event_data.scheduled_arrival,
         scheduled_departure: event_data.scheduled_departure,
@@ -242,16 +258,14 @@ function getDeparturesBoard(stop_id, chateau_id, greater_than_time, less_than_ti
         vehicle_number: truncateToUtf8Bytes(event_data.vehicle_number, FIELD_SIZES.vehicle_number),
         trip_short_name: truncateToUtf8Bytes(event_data.trip_short_name, FIELD_SIZES.trip_short_name),
 
-        // TODO - Handle translations and absence of translations for route stuff
         route_name: truncateToUtf8Bytes(
-          route.short_name ? route.short_name : route.long_name, 
+          route_short_name ? route_short_name : find_english_gtfs_static(route.long_name_translations, route.long_name), 
           FIELD_SIZES.route_name),
         route_color: route.color ? hexToGColor8Argb(route.color) : GColorWhiteARGB8,
         route_text_color: route.text_color ? hexToGColor8Argb(route.text_color) : GColorBlackARGB8,
         route_type: route.route_type,
 
-        // TODO - Handle translations and absence of translations for agency name
-        agency_name: truncateToUtf8Bytes(agency.agency_name, FIELD_SIZES.agency_name),
+        agency_name: truncateToUtf8Bytes(find_english_gtfs_static(agency.agency_name_translations, agency.agency_name), FIELD_SIZES.agency_name),
       });
     }
 

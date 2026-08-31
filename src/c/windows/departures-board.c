@@ -100,12 +100,12 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
 
           char time_str[32];
           if(clock_is_24h_style()) {
-            strftime(time_str, 32, "After %b-%d %H:%M", displayed_time);
+            strftime(time_str, 32, "%Y-%m-%d %H:%M", displayed_time);
           } else {
-            strftime(time_str, 32, "After %b-%d %I:%M %P", displayed_time);
+            strftime(time_str, 32, "%Y-%m-%d %I:%M %P", displayed_time);
           }
 
-          menu_cell_basic_draw(ctx, cell_layer, "Showing trains only", time_str, s_ICON_T_TRAIN_25);
+          menu_cell_basic_draw(ctx, cell_layer, "Trips after", time_str, NULL);
         } break;
         // case MenuSection_Preface_TimeSelection: {
         //   menu_cell_basic_draw(ctx, cell_layer, "2026-06-27 13:01", "Showing departures after this time", NULL);
