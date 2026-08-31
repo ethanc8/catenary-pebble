@@ -9,6 +9,7 @@
 #include "../conf.h"
 
 #include "departures-board.h"
+#include "departures-board-alerts-screen.h"
 
 #define NUM_MENU_SECTIONS 2
 
@@ -16,7 +17,7 @@ enum {
   MenuSection_Preface = 0,
   MenuSection_Preface_NumItems = 2,
 
-  MenuSection_Preface_ModeSelection = 0,
+  MenuSection_Preface_TimeSelection = 0,
   // MenuSection_Preface_TimeSelection = 1,
   MenuSection_Preface_Alerts = 1,
 
@@ -95,7 +96,7 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
   switch(cell_index->section) {
     case MenuSection_Preface:
       switch (cell_index->row) {
-        case MenuSection_Preface_ModeSelection: {
+        case MenuSection_Preface_TimeSelection: {
           struct tm* displayed_time = tm_from_time_timezone(s_request.greater_than_time, s_response->stop.timezone_offset);
 
           char time_str[32];
@@ -159,9 +160,19 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
 }
 
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-  // Use the row to specify which item will receive the select action
-  // switch (cell_index->row) {
-  // }
+  switch(cell_index->section) {
+    case MenuSection_Preface:
+      switch (cell_index->row) {
+        case MenuSection_Preface_TimeSelection: { } break; // TODO
+        case MenuSection_Preface_Alerts: {
+          if(s_response->alerts_count > 0) {
+            departures_board_alerts_screen_push(s_response);
+          }
+        } break;
+      }
+      break;
+    case MenuSection_Departures: { } break; // TODO
+  }
 }
 
 static int16_t get_cell_height_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *callback_context) { 

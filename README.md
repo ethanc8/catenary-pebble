@@ -32,7 +32,7 @@ pebble build -- --emulator --debugger && pebble install --emulator emery --logs
 pebble gdb --emulator emery
 
 # Build and install to a paired phone
-pebble build && pebble install --phone <ip>
+pebble build && pebble install --logs --phone <ip>
 ```
 
 ### Project layout
