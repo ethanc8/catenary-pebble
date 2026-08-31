@@ -317,15 +317,14 @@ static void fix_departures_board_request() {
       .less_than_time = s_request.less_than_time,
     };
   }
+  time_t now = time(NULL);
   if(!s_request.has_greater_than_time) {
-    time_t greater_than_time = time(NULL);
     s_request.has_greater_than_time = true;
-    s_request.greater_than_time = greater_than_time;
+    s_request.greater_than_time = now - 3600;
   }
   if(!s_request.has_less_than_time) {
-    time_t less_than_time = s_request.greater_than_time + (60*60);
     s_request.has_less_than_time = true;
-    s_request.less_than_time = less_than_time;
+    s_request.less_than_time = now + 86400;
   }
 }
 
